@@ -17,58 +17,58 @@ class SnmpProviderAuthConfig:
     """
     SNMP authentication configuration.
     """
-    port: int = pydantic.field(
+    port: int = pydantic.Field(
         default=162,
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "Port to listen for SNMP traps",
             "hint": "Default is 162",
         },
     )
-    community: str = pydantic.field(
+    community: str = pydantic.Field(
         default="public",
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v2c Community String",
             "hint": "Default is public",
         },
     )
     # SNMP v3 auth
-    v3_user: Optional[str] = pydantic.field(
+    v3_user: Optional[str] = pydantic.Field(
         default=None,
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v3 Security Name",
             "hint": "Username for SNMP v3",
         },
     )
-    v3_auth_key: Optional[str] = pydantic.field(
+    v3_auth_key: Optional[str] = pydantic.Field(
         default=None,
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v3 Auth Key",
             "sensitive": True,
         },
     )
-    v3_priv_key: Optional[str] = pydantic.field(
+    v3_priv_key: Optional[str] = pydantic.Field(
         default=None,
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v3 Priv Key",
             "sensitive": True,
         },
     )
-    v3_auth_proto: str = pydantic.field(
+    v3_auth_proto: str = pydantic.Field(
         default="sha",
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v3 Auth Protocol",
             "hint": "sha, md5, etc.",
         },
     )
-    v3_priv_proto: str = pydantic.field(
+    v3_priv_proto: str = pydantic.Field(
         default="aes",
-        metadata={
+        json_schema_extra={
             "required": False,
             "description": "SNMP v3 Priv Protocol",
             "hint": "aes, des, etc.",
@@ -164,13 +164,18 @@ class SnmpProvider(BaseProvider):
         # 5. Run the background loop
         self.logger.info("SNMP listener active")
         try:
-            # Pysnmp-asyncio uses the running event loop
-            loop = asyncio.get_event_loop()
-            while self.consume:
-                # We don't need to do much here, ntfrcv is handled by the engine/transport
-                # But we need to keep the thread alive if it's the main thread
-                # In Keep, this runs in a separate thread via EventSubscriber
-                loop.run_until_complete(asyncio.sleep(1))
+            # Thread-safe event loop management
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            async def listen():
+                while self.consume:
+                    await asyncio.sleep(1)
+            
+            loop.run_until_complete(listen())
         except Exception:
             self.logger.exception("Error in SNMP listener loop")
         finally:
