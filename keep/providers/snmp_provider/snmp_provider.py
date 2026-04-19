@@ -2,10 +2,9 @@ import asyncio
 from typing import Any, Optional
 import pydantic
 from dataclasses import field
-from pysnmp.hlapi import *  # type: ignore
-from pysnmp.entity import engine, config  # type: ignore
-from pysnmp.entity.rfc3413 import ntfrcv  # type: ignore
-from pysnmp.carrier.asyncio.dgram import udp  # type: ignore
+from pysnmp.entity import engine, config
+from pysnmp.entity.rfc3413 import ntfrcv
+from pysnmp.carrier.asyncio.dgram import udp
 
 from keep.contextmanager.contextmanager import ContextManager
 from keep.providers.base.base_provider import BaseProvider
@@ -19,7 +18,8 @@ class SnmpProviderAuthConfig:
     SNMP authentication configuration.
     """
 
-    tags: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)  # noqa
+    host: str = field(default="0.0.0.0")  # nosec B104
     port: int = field(
         default=162,
         metadata={
@@ -84,9 +84,9 @@ class SnmpProvider(BaseProvider):
     SNMP provider class for receiving traps.
     """
 
-    PROVIDER_DISPLAY_NAME = "SNMP"
-    PROVIDER_CATEGORY = ["Monitoring"]
-    PROVIDER_TAGS = ["alert", "topology"]
+    PROVIDER_DISPLAY_NAME = "SNMP"  # noqa
+    PROVIDER_CATEGORY = ["Monitoring"]  # noqa
+    PROVIDER_TAGS = ["alert", "topology"]  # noqa
 
     def __init__(
         self, context_manager: ContextManager, provider_id: str, config: ProviderConfig
@@ -95,22 +95,22 @@ class SnmpProvider(BaseProvider):
         self.snmp_engine = engine.SnmpEngine()
         self.consume = False
 
-    def validate_config(self) -> None:
+    def validate_config(self) -> None:  # noqa
         self.authentication_config = SnmpProviderAuthConfig(
             **self.config.authentication  # type: ignore
         )
 
-    def dispose(self) -> None:
+    def dispose(self) -> None:  # noqa
         self.stop_consume()
 
     def _trap_callback(
         self,
-        snmpEngine: Any,
-        stateReference: Any,
-        contextEngineId: Any,
-        contextName: Any,
+        _snmpEngine: Any,
+        _stateReference: Any,
+        _contextEngineId: Any,
+        _contextName: Any,
         varBinds: Any,
-        cbCtx: Any,
+        _cbCtx: Any,
     ) -> None:
         """
         Callback executed when a trap is received.
@@ -146,7 +146,7 @@ class SnmpProvider(BaseProvider):
         except Exception:
             self.logger.exception("Failed to push SNMP alert to Keep")
 
-    def start_consume(self) -> None:
+    def start_consume(self) -> None:  # noqa
         """
         Start listening for SNMP traps.
         """
@@ -186,8 +186,8 @@ class SnmpProvider(BaseProvider):
         config.addTransport(
             self.snmp_engine,
             udp.domainName,
-            udp.UdpAsyncioTransport().openServerMode(
-                ("0.0.0.0", self.authentication_config.port)
+            udp.UdpAsyncioTransport().openServerMode(  # nosec B104
+                (self.authentication_config.host, self.authentication_config.port)
             ),
         )
 
